@@ -98,8 +98,14 @@ class WrappedInferenceFunc(GenerationMixin):
             past_key_values = ret.past_key_values
         return ret
 
+    def _reorder_cache(self, past, beam_idx):
+        # FIXME(yonghao): not work for alpa
+        return tuple(
+            tuple(past_state.index_select(0, beam_idx.to(past_state.device)) for past_state in layer_past)
+            for layer_past in past
+        )
 
-def get_model(model_name, device, dummy,
+def get_model(model_name, device, dummy, num_beams,
               support_output_attentions=False,
               support_output_hidden_states=False):
     if "gpt" in model_name:
@@ -139,6 +145,7 @@ def get_model(model_name, device, dummy,
         inference_func_config = InferenceFuncConfig()
         for key in inference_func_config.__dataclass_fields__.keys():
             setattr(inference_func_config, key, getattr(raw_model.config, key))
+        inference_func_config.num_beams = num_beams
         print(inference_func_config)
 
     elif "alpa/opt" in model_name:
@@ -146,7 +153,7 @@ def get_model(model_name, device, dummy,
         num_pp_stages = max(2, alpa.get_global_cluster().num_hosts)
 
         name = model_name.split("-")[1].upper()
-        config = get_config(name, num_pp_stages=num_pp_stages)
+        config = get_config(name, num_pp_stages=num_pp_stages, batch_size=num_beams)
         path = f"/home/ubuntu/opt_weights/{name}_np"
 
         executable, params_aval = get_pipeshard_executable(
@@ -154,7 +161,7 @@ def get_model(model_name, device, dummy,
             support_output_attentions=support_output_attentions,
             support_output_hidden_states=support_output_hidden_states)
         params = load_params_dis_array(path, executable, params_aval, config, dummy)
-        init_cache = init_cache_dis_array(executable, config, 1, dummy)
+        init_cache = init_cache_dis_array(executable, config, dummy)
         executable.sync()
 
         step_ct = 0
@@ -183,22 +190,23 @@ def get_model(model_name, device, dummy,
                                        output.hidden_states,
                                        output.attentions)
 
-        inference_func_config = InferenceFuncConfig()
+        inference_func_config = InferenceFuncConfig(num_beams=num_beams)
 
     return WrappedInferenceFunc(inference_func, inference_func_config)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="alpa/opt-125m")
+    parser.add_argument("--model", type=str, default="facebook/opt-125m")
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--dummy", action="store_true")
+    parser.add_argument("--num-beams", type=int, default=1)
     args = parser.parse_args()
 
     tokenizer = GPT2Tokenizer.from_pretrained("facebook/opt-125m")
 
     tic = time.time()
-    model = get_model(args.model, args.device, args.dummy)
+    model = get_model(args.model, args.device, args.dummy, args.num_beams)
     load_time = time.time() - tic
 
     prompts = [
