@@ -333,7 +333,8 @@ class XlaShardedPipelineComputation(PipelineComputation):
     def get_runnable(self, mesh=None):
         """Return a callable of the pipeline computation."""
         if not mesh:
-            raise RuntimeError("`XlaShardedPipelineComputation` requires a mesh.")
+            raise RuntimeError(
+                "`XlaShardedPipelineComputation` requires a mesh.")
         hlo_module = self.get_spmd_partitioned()
 
         avals = [var.aval for var in self.invars]
@@ -875,14 +876,8 @@ def generate_sharded_xla_computations(
 
     #  pylint: disable=unbalanced-tuple-unpacking
     computation_names, computation_protos, strategy_config = run_auto_sharding_pass(
-        built,
-        in_avals,
-        out_avals,
-        donated_invars,
-        logical_mesh,
-        "stage_protos",
-        num_micro_batches,
-        autosharding_option)
+        built, in_avals, out_avals, donated_invars, logical_mesh,
+        "stage_protos", num_micro_batches, autosharding_option)
     computations = generate_computations_from_protos(
         jax_computations, computation_names, computation_protos,
         computation_donate_invars, donatable_lists, acc_grad_outvars,

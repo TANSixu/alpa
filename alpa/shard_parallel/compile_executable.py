@@ -69,9 +69,10 @@ def compile_shard_executable(
         raise ValueError("Invalid value of devices")
 
     if num_micro_batches is None:
-        return shard_parallel_internal(
-            fun, in_tree, out_tree_thunk, static_argnums, donated_invars,
-            physical_mesh, logical_mesh_choices, as_option, *avals)
+        return shard_parallel_internal(fun, in_tree, out_tree_thunk,
+                                       static_argnums, donated_invars,
+                                       physical_mesh, logical_mesh_choices,
+                                       as_option, *avals)
     else:
         return shard_parallel_internal_gradient_accumulation(
             fun, in_tree, out_tree_thunk, static_argnums, donated_invars,
@@ -82,7 +83,8 @@ def compile_shard_executable(
 def shard_parallel_internal(
         fun: lu.WrappedFun, in_tree: PyTreeDef, out_tree_thunk: Callable,
         static_argnums: Sequence[int], donated_invars: Sequence[bool],
-        physical_mesh: PhysicalDeviceMesh, logical_mesh_choices: Sequence[LogicalDeviceMesh],
+        physical_mesh: PhysicalDeviceMesh,
+        logical_mesh_choices: Sequence[LogicalDeviceMesh],
         as_option: AutoShardingOption, *avals: Sequence[AbstractValue]):
     """
     Compile an executable with auto-sharding pass.
@@ -112,14 +114,8 @@ def shard_parallel_internal(
 
     # Compile a XLA executable
     hlo_module, strategy_config = run_auto_sharding_pass(
-        built,
-        avals,
-        out_avals,
-        donated_invars,
-        logical_mesh_choices[0],
-        "single",
-        1,
-        as_option)
+        built, avals, out_avals, donated_invars, logical_mesh_choices[0],
+        "single", 1, as_option)
 
     # Compile a mesh executable
     return NormalMeshDriverExecutable(physical_mesh,
@@ -163,14 +159,8 @@ def shard_parallel_internal_gradient_accumulation(
 
     # pylint: disable=unbalanced-tuple-unpacking
     hlo_proto_names, hlo_protos, strategy_config = run_auto_sharding_pass(
-        built,
-        avals,
-        out_avals,
-        donated_invars,
-        logical_mesh_choices[0],
-        "stage_protos",
-        num_micro_batches,
-        as_option)
+        built, avals, out_avals, donated_invars, logical_mesh_choices[0],
+        "stage_protos", num_micro_batches, as_option)
     assert len(hlo_protos) == 2
 
     if hlo_proto_names[0].endswith(APPLY_GRAD_MARKER_SUFFIX):
