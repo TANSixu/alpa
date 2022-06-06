@@ -127,7 +127,8 @@ def shard_parallel_internal(
                                       out_avals,
                                       donated_invars,
                                       static_argnums=static_argnums,
-                                      out_tree_thunk=out_tree_thunk,
+                                      in_tree=in_tree,
+                                      out_tree=out_tree_thunk(),
                                       flop_count=flop_count)
 
 
@@ -209,6 +210,8 @@ def shard_parallel_internal_gradient_accumulation(
                                        accumulate_grad_invar_indices,
                                        apply_grad_invar_indices,
                                        num_micro_batches,
+                                       in_tree=in_tree,
+                                       out_tree=out_tree_thunk(),
                                        flop_count=flop_count)
 
 
